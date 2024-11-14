@@ -131,6 +131,5 @@ def main():
     # Start the indexing process
     inverted_index = run(inverted_index, file_mapper, document_paths)
 
-
 if __name__ == "__main__":
     main()
