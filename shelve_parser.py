@@ -3,8 +3,7 @@ import os
 import dbm
 
 
-
-def parse_shelve_files(shelve_folder='/Users/akshitaakumalla/search_enginepy/shelve',output_folder = '/Users/akshitaakumalla/search_enginepy/output'):
+def parse_shelve_files(shelve_folder="C:/Users/User/search_enginepy/shelve",output_folder = "C:/Users/User/search_enginepy/output"):
     # Ensure the output folder exists
     total_index_documents = 0
     total_unique_tokens = set()
@@ -20,18 +19,20 @@ def parse_shelve_files(shelve_folder='/Users/akshitaakumalla/search_enginepy/she
             
             # Open the shelve file and output text file
             try:
-                with shelve.open(shelve_path, flag='r', writeback=True) as shelve_db, open(output_path, 'w') as output_file:
+                with shelve.open(shelve_path, flag='r') as shelve_db, open(output_path, 'w', encoding='utf-8') as output_file:
                     # Iterate through all entries in the shelve database
                     for doc_id, data in shelve_db.items():
                         file_path = data.get("file_path", "Unknown path")
                         word_scores = data.get("word_scores", {})
                         word_freq = data.get("wordFreq", {})
+                        total_index_documents += 1
+                        total_unique_tokens.update(word_freq.keys())
 
                         # Write structured data to the output file
                         output_file.write(f"Document ID: {doc_id}\n")
-                        total_index_documents= total_index_documents+1
-
+                        
                         output_file.write(f"File Path: {file_path}\n")
+
                         output_file.write("Word Scores:\n")
                         for word, score in word_scores.items():
                             output_file.write(f"  {word}: {score}\n")
@@ -56,6 +57,6 @@ def parse_shelve_files(shelve_folder='/Users/akshitaakumalla/search_enginepy/she
             except dbm.error as e:
                 print(f"Error reading shelve file {shelve_path}: {e}")
             
-            print("Total index documents: ", total_index_documents)
-            print("Total unique tokens: ", total_unique_tokens)
-            print("Total size: ", total_file_size, " KB")
+    print("Total index documents: ", total_index_documents)
+    print("Total unique tokens: ", len(total_unique_tokens))
+    print("Total size: ", total_file_size, " KB")

@@ -29,7 +29,7 @@ def convert_freq_stemming(response_content):
 
 def json_parse(filepath):
     try:
-        with open(filepath, "r") as file:
+        with open(filepath, "r+", encoding='utf-8') as file:
             file_data = json.load(file)
     except json.JSONDecodeError:
         return ""
@@ -38,7 +38,10 @@ def json_parse(filepath):
     for element in content(["script", "style"]):
         element.decompose()
 
-    text = content.get_text(separator=" ")
+    for anchor in content.find_all('a', href=True):
+        anchor.decompose()
+
+    text = ' '.join(content.get_text(separator=' ').split())
 
     tagDict = {
         #high importance
@@ -120,8 +123,8 @@ def run(indexer, file_mapper, document_paths, max_threads=10):
 
 def main():
     # This path will change based on who it is. In your own local you have to change this
-    main_path = "/Users/akshitaakumalla/search_enginepy/"
-    document_folder = "/Users/akshitaakumalla/search_enginepy/developer/"
+    main_path = "C:/Users/User/search_enginepy"
+    document_folder = "C:/Users/User/search_enginepy/developer"
 
     # go recursively and get all the files in the subdirectory
     document_paths = []
@@ -135,7 +138,7 @@ def main():
 
     # Start the indexing process
     inverted_index = run(inverted_index, file_mapper, document_paths)
-    parse_shelve_files(main_path+"/DEV/",main_path+"/output/")
+    parse_shelve_files(main_path+"/shelve/",main_path+"/output/")
 
 if __name__ == "__main__":
     main()
