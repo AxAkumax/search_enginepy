@@ -9,8 +9,12 @@ from helpers.indexerHelper import *
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import shelve
 import dbm.dumb as dbm
+from shelve_parser import parse_shelve_files
 
 stemmer = PorterStemmer()
+
+print(nltk.__version__)
+
 def convert_freq_stemming(response_content):
     try:
         text = convert_response_to_words(response_content)
@@ -116,6 +120,7 @@ def run(indexer, file_mapper, document_paths, max_threads=10):
 
 def main():
     # This path will change based on who it is. In your own local you have to change this
+    main_path = "/Users/akshitaakumalla/search_enginepy/"
     document_folder = "/Users/akshitaakumalla/search_enginepy/developer/"
 
     # go recursively and get all the files in the subdirectory
@@ -130,7 +135,7 @@ def main():
 
     # Start the indexing process
     inverted_index = run(inverted_index, file_mapper, document_paths)
-
+    parse_shelve_files(main_path+"/DEV/",main_path+"/output/")
 
 if __name__ == "__main__":
     main()

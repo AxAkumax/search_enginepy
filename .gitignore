@@ -9,6 +9,7 @@ DEV/
 developer/
 shelve/
 output/
+output.txt
 
 # C extensions
 *.so
