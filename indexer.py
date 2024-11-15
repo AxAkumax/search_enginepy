@@ -116,7 +116,7 @@ def run(indexer, file_mapper, document_paths, max_threads=10):
 
 def main():
     # This path will change based on who it is. In your own local you have to change this
-    document_folder = "C:/Users/Santiago/Desktop/121/m3/developer"
+    document_folder = "/Users/akshitaakumalla/search_enginepy/developer/"
 
     # go recursively and get all the files in the subdirectory
     document_paths = []
