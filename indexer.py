@@ -13,7 +13,7 @@ from shelve_parser import parse_shelve_files
 
 stemmer = PorterStemmer()
 
-print(nltk.__version__)
+#print(nltk.__version__)
 
 def convert_freq_stemming(response_content):
     try:

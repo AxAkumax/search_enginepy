@@ -5,7 +5,7 @@ import dbm
 
 def parse_shelve_files(shelve_folder="C:/Users/User/search_enginepy/shelve",output_folder = "C:/Users/User/search_enginepy/output"):
     # Ensure the output folder exists
-    total_index_documents = 0
+    total_index_documents = set()
     total_unique_tokens = set()
     total_file_size = 0
 
@@ -15,7 +15,7 @@ def parse_shelve_files(shelve_folder="C:/Users/User/search_enginepy/shelve",outp
     for filename in os.listdir(shelve_folder):
         if filename.endswith('.db'):
             shelve_path = os.path.join(shelve_folder, filename)
-            output_path = os.path.join(output_folder, f"{filename}.txt")
+            output_path = os.path.join(output_folder, f"results.txt")
             
             # Open the shelve file and output text file
             try:
@@ -25,7 +25,7 @@ def parse_shelve_files(shelve_folder="C:/Users/User/search_enginepy/shelve",outp
                         file_path = data.get("file_path", "Unknown path")
                         word_scores = data.get("word_scores", {})
                         word_freq = data.get("wordFreq", {})
-                        total_index_documents += 1
+                        total_index_documents.add(doc_id)
                         total_unique_tokens.update(word_freq.keys())
 
                         # Write structured data to the output file
@@ -57,6 +57,6 @@ def parse_shelve_files(shelve_folder="C:/Users/User/search_enginepy/shelve",outp
             except dbm.error as e:
                 print(f"Error reading shelve file {shelve_path}: {e}")
             
-    print("Total index documents: ", total_index_documents)
+    print("Total index documents: ", len(total_index_documents))
     print("Total unique tokens: ", len(total_unique_tokens))
     print("Total size: ", total_file_size, " KB")
