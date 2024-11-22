@@ -9,8 +9,18 @@ from helpers.indexerHelper import *
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import shelve
 import dbm.dumb as dbm
+from shelve_parser import parse_shelve_files
+from time import sleep
+import heapq
+
+import pprint
 
 stemmer = PorterStemmer()
+
+shelve._dbm = dbm
+
+print(nltk.__version__)
+
 def convert_freq_stemming(response_content):
     try:
         text = convert_response_to_words(response_content)
@@ -65,8 +75,6 @@ def index_document(file_path, inverted_index, file_mapper):
     thread_name = threading.current_thread().name
     shelve_filename = f"shelve/thread_data_{thread_id}.db"
 
-    print(f"[{thread_name}] Processing file: {file_path}")
-
     #Get the important information from the file. The text and the tagDict that will be used in later portions, like m2/3
     parsed_data = json_parse(file_path)
 
@@ -77,46 +85,53 @@ def index_document(file_path, inverted_index, file_mapper):
     text = parsed_data["text"]
     tagDict = parsed_data["tagDict"]
 
-    word_scores = calculateWordScores(text, tagDict)
-
     wordFreq = convert_freq_stemming(text)
+    word_scores = calculateWordScores(wordFreq, tagDict)
 
     doc_id = file_mapper.addFile(file_path)
 
     try:
-        with shelve.open(shelve_filename, flag='c', protocol=2, writeback=True) as shelve_db:
+        with open_shelve(shelve_filename, flag='c', protocol=2, writeback=True) as shelve_db:
             shelve_db[str(doc_id)] = {
                 "file_path": file_path,
                 "word_scores": word_scores,
                 "wordFreq": wordFreq
             }
-    except dbm.error as e:
+    except Exception as e:
         print(f"Error processing file {file_path}: {e}")
-        return None
 
-    inverted_index.add_document(doc_id, wordFreq)
+    inverted_index.addDocument(doc_id, wordFreq)
 
+def open_shelve(filename, flag='c', protocol=None, writeback=False):
+    return shelve.Shelf(dbm.open(filename, flag), protocol=protocol, writeback=writeback)
 
-def run(indexer, file_mapper, document_paths, max_threads=10):
-    inverted_index = InvertedIndex()
-
+def run(indexer, file_mapper, document_paths, invertedIndexLocation, max_threads=10):
+    # Use the passed 'indexer' directly, no need to create a new InvertedIndex object
     with ThreadPoolExecutor(max_threads) as executor:
-        # Create a "task" with the file. Each file will be handled 
-        fileTask = {executor.submit(index_document, file_path, inverted_index, file_mapper): file_path for file_path in document_paths}
+        # Create a "task" with the file. Each file will be handled
+        fileTask = {executor.submit(index_document, file_path, indexer, file_mapper): file_path for file_path in document_paths}
 
         for future in as_completed(fileTask):
             file_path = fileTask[future]
-            #wait for the task to finish. This is to ensure the thread doesn't start processing another file until it has finished with the file it is already on
+            # Wait for the task to finish. This is to ensure the thread doesn't start processing another file until it has finished with the file it is already on.
             try:
                 future.result()
             except Exception as e:
                 print(f"Error processing file {file_path}: {e}")
 
-    return inverted_index
+    return indexer
+
+def setup_shelve_dir(shelve_dir):
+    if not os.path.exists(shelve_dir):
+        os.makedirs(shelve_dir)
 
 def main():
     # This path will change based on who it is. In your own local you have to change this
-    document_folder = "C:/Users/Santiago/Desktop/121/m3/developer"
+    main_path = "C:/Users/Santiago/Desktop/121/m3"
+    document_folder = "C:/Users/Santiago/Desktop/121/m3/test"
+    invertedIndexLocation = "C:/Users/Santiago/Desktop/121/m3/ii"
+    shelveDirectory = "C:/Users/Santiago/Desktop/121/m3/shelve"
+    setup_shelve_dir(invertedIndexLocation)
 
     # go recursively and get all the files in the subdirectory
     document_paths = []
@@ -125,11 +140,79 @@ def main():
                 if file.endswith('.json'):
                     document_paths.append(os.path.join(root, file))
 
-    file_mapper = fileMapper()
-    inverted_index = InvertedIndex()
+    file_mapper = fileMapper() 
+    inverted_index = InvertedIndex(invertedIndexLocation)
+    inverted_index = run(inverted_index, file_mapper, document_paths, invertedIndexLocation)
 
-    # Start the indexing process
-    inverted_index = run(inverted_index, file_mapper, document_paths)
+    parse_shelve_files(shelveDirectory,main_path+"/output/")
+    words = input("Query:")
+    stemmedWords = [stemmer.stem(word) for word in words.split()]
+    print(stemmedWords)
+    compatibleWebsites = query(stemmedWords, inverted_index)
+    print(top5Websites(stemmedWords,inverted_index, compatibleWebsites,shelveDirectory, file_mapper))
+
+def top5Websites(listOfWords, index, websites, shelveDir, fileMapper):
+    documentWordScores = defaultdict(float)
+    websiteNames = {fileMapper.getFileById(website - 1): website for website in websites}
+
+
+    # Get all of the files from the shelve directory, there is going to be 1 per thread
+    files = set()
+    for file in os.listdir(shelveDir):
+        split = file.split('.')
+        files.add(split[0] + '.db')
+
+
+    for fileName in files:
+        shelve_path = os.path.join(shelveDir, fileName)
+        try:
+            with dbm.open(shelve_path, flag='r') as shelve_db:
+                for websitePath, websiteId in websiteNames.items():
+
+                    # Some weird shelve specific thing, it has to be encoded so that you can read it.
+                    docBytes = shelve_db.get(str(websiteId).encode(), None)
+                    if docBytes is None:
+                        print("data is empty, this should never happen if it got up to this place. Something went wrong")
+                        continue
+                    
+                    # Another weird shelve specific thing. Have to deserialize it, since I think its byte encoded? IDRK
+                    docData = pickle.loads(docBytes)
+
+                    filePath = docData.get('file_path')
+                    if filePath is None:
+                        #once again, this should never happen. if it gets inside this, something went wrong
+                        continue
+
+                    tempScore = 0
+                    word_freq = docData.get('wordFreq', {})
+                    for word in listOfWords:
+                        tempScore += word_freq.get(word, 0)
+
+                    documentWordScores[websitePath] += tempScore
+
+        except dbm.error as e:
+            print(f"Error opening shelve {shelve_path}: {e}")
+        except Exception as e:
+            print(f"Unexpected error with shelve {shelve_path}: {e}")
+
+    # Kth largest, O(N * log(5)) instead of sorting.
+    top5_docs = heapq.nlargest(5, documentWordScores.items(), key=lambda x: x[1])
+    top5_websites = [tuple([website,score]) for website, score in top5_docs]
+
+    return top5_websites
+
+
+def query(stemmed, invertedIndex):
+
+    compatible_docs = None
+    for word in stemmed:
+        docs = invertedIndex.get_documents(word)
+        if compatible_docs is None:
+            compatible_docs = docs
+        else:
+            compatible_docs = compatible_docs.intersection(docs)
+
+    return compatible_docs
 
 if __name__ == "__main__":
     main()

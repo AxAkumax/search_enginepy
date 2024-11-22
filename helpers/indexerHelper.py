@@ -2,35 +2,44 @@ from collections import defaultdict
 import re
 import threading
 from bs4 import BeautifulSoup
+import pickle
+import shelve
+import dbm.dumb as dbm
+import os
 
 stop_words = {'a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and', 'any', 'are', "aren't", 'as', 'at', 'be', 'because', 'been', 'before', 'being', 'below', 'between', 'both', 'but', 'by', "can't", 'cannot', 'could', "couldn't", 'did', "didn't", 'do', 'does', "doesn't", 'doing', "don't", 'down', 'during', 'each', 'few', 'for', 'from', 'further', 'had', "hadn't", 'has', "hasn't", 'have', "haven't", 'having', 'he', "he'd", "he'll", "he's", 'her', 'here', "here's", 'hers', 'herself', 'him', 'himself', 'his', 'how', "how's", 'i', "i'd", "i'll", "i'm", "i've", 'if', 'in', 'into', 'is', "isn't", 'it', "it's", 'its', 'itself', "let's", 'me', 'more', 'most', "mustn't", 'my', 'myself', 'no', 'nor', 'not', 'of', 'off', 'on', 'once', 'only', 'or', 'other', 'ought', 'our', 'ours', 'ourselves', 'out', 'over', 'own', 'same', "shan't", 'she', "she'd", "she'll", "she's", 'should', "shouldn't", 'so', 'some', 'such', 'than', 'that', "that's", 'the', 'their', 'theirs', 'them', 'themselves', 'then', 'there', "there's", 'these', 'they', "they'd", "they'll", "they're", "they've", 'this', 'those', 'through', 'to', 'too', 'under', 'until', 'up', 'very', 'was', "wasn't", 'we', "we'd", "we'll", "we're", "we've", 'were', "weren't", 'what', "what's", 'when', "when's", 'where', "where's", 'which', 'while', 'who', "who's", 'whom', 'why', "why's", 'with', "won't", 'would', "wouldn't", 'you', "you'd", "you'll", "you're", "you've", 'your', 'yours', 'yourself', 'yourselves', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'}
 
 
 class InvertedIndex:
-    def __init__(self):
-        self.index = defaultdict(list)  # term -> list of document IDs
-        self.docTermMapping = {}  # docId -> {term: frequency}
+    def __init__(self, shelve_dir):
+        self.shelve_dir = os.path.abspath(str(shelve_dir))
+        if not os.path.exists(self.shelve_dir):
+            os.makedirs(self.shelve_dir)
 
-        #may also need to remove this part if multi threading is not allowed
-        self.lock = threading.Lock() 
+        self.shelve_path = os.path.join(self.shelve_dir, 'inverted_index.db')
+        print(f"Shelve path: {self.shelve_path}")
+        self.lock = threading.Lock()
 
-    def add_document(self, docId, terms):
+    def _get_shelve(self, flag='c'):
+        return shelve.Shelf(dbm.open(self.shelve_path, flag), writeback=True)
+
+    def addDocument(self, docId, terms):
         termFreq = defaultdict(int)
         for term in terms:
             termFreq[term] += 1
-        
+
         with self.lock:
-            self.docTermMapping[docId] = dict(termFreq)
+            with self._get_shelve(flag='c') as shelve_db:
+                for term, freq in termFreq.items():
+                    if term not in shelve_db:
+                        shelve_db[term] = set()
+                    shelve_db[term].add(docId)
+
+    def get_documents(self, term):
+        with self.lock:
+            with self._get_shelve(flag='c') as shelve_db:
+                return shelve_db.get(term, set())
             
-            for term in termFreq:
-                self.index[term].append(docId)
-
-    def get_documents_for_term(self, term):
-        return self.index.get(term, [])
-
-    def get_term_frequency_in_doc(self, docId, term):
-        return self.docTermMapping.get(docId, {}).get(term, 0)
-
 class fileMapper:
     def __init__(self):
         self.fileToId = {} # file path -> document unique id
@@ -38,7 +47,7 @@ class fileMapper:
 
         #may need to remove, not sure if multi threading is allowed, but makes it way faster for processing
         self.lock = threading.Lock()
-        self.counter = 1
+        self.counter = 0
 
     def addFile(self,filePath):
         with self.lock:
@@ -46,7 +55,7 @@ class fileMapper:
                 self.fileToId[filePath] = self.counter
                 self.idToFile[self.counter] = filePath
                 self.counter +=1
-            return self.counter - 1
+            return self.counter
 
     def getFileById(self,id):
         return self.idToFile.get(id,None)
@@ -79,12 +88,12 @@ def calculateWordScores(text, tagDict):
 
     #count the score for the words that are in tags
     for tagText in tags:
-        for word in tagText:
+        for word in tagText.split():
             wordScores[word] += importanceScores[importance]
     
     #count the score for the words that are just in the content
-    for word in text:
-        wordScores[word] += importanceScores["text"]
+    for word, amount in text.items():
+        wordScores[word] += importanceScores["text"] * amount
     
     return dict(wordScores)
 

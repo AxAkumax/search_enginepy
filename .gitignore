@@ -6,6 +6,10 @@ __pycache__/
 
 #dev folder
 DEV/
+developer/
+shelve/
+output/
+output.txt
 
 # C extensions
 *.so
