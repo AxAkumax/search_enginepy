@@ -1,4 +1,5 @@
 from collections import defaultdict
+from nltk.stem import PorterStemmer
 import re
 import threading
 from bs4 import BeautifulSoup
@@ -74,6 +75,7 @@ def calculateWordScores(text, tagDict):
     }
     
     wordScores = defaultdict(float)
+    stemmer = PorterStemmer()
     
     for tag_type, tags in tagDict.items():
         if tag_type in ["h1", "title"]:
@@ -89,7 +91,8 @@ def calculateWordScores(text, tagDict):
     #count the score for the words that are in tags
     for tagText in tags:
         for word in tagText.split():
-            wordScores[word] += importanceScores[importance]
+            stemmedWord = stemmer.stem(word)
+            wordScores[stemmedWord] += importanceScores[importance]
     
     #count the score for the words that are just in the content
     for word, amount in text.items():
