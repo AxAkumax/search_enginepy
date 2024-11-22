@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import shelve
 import dbm.dumb as dbm
 from shelve_parser import parse_shelve_files
-from time import sleep
+import time
 import heapq
 
 import pprint
@@ -78,6 +78,8 @@ def index_document(file_path, inverted_index, file_mapper):
     thread_name = threading.current_thread().name
     shelve_filename = f"shelve/thread_data_{thread_id}.db"
 
+    print(f"[{thread_name}] Processing file: {file_path}")
+
     #Get the important information from the file. The text and the tagDict that will be used in later portions, like m2/3
     parsed_data = json_parse(file_path)
 
@@ -126,12 +128,64 @@ def setup_shelve_dir(shelve_dir):
     if not os.path.exists(shelve_dir):
         os.makedirs(shelve_dir)
 
+# use to search index through cmd
+def cmd_search(inverted_index, shelveDirectory, file_mapper):
+    while True:
+        user_input = input("Enter your inputs (Q to quit): ")
+
+        if user_input.lower() != "q":
+            # Stem the user's input
+            stemmed_words = [stemmer.stem(word) for word in user_input.split()]
+
+            start_time = time.time()
+            # Use the query function to get compatible websites
+            compatible_websites = query(stemmed_words, inverted_index)
+
+            if not compatible_websites:
+                print("No results found!!!")
+                continue
+
+            # Use top5Websites to score and rank the websites
+            top_results = top5Websites(
+                listOfWords = stemmed_words,
+                index = inverted_index,
+                websites = compatible_websites,
+                shelveDir = shelveDirectory,
+                fileMapper = file_mapper
+            )
+            search_time = (time.time() - start_time) * 1000
+            print(f"This search took {search_time:.2f} ms")
+
+            if not top_results:
+                print("No results found after ranking!!!")
+                continue
+
+            print(f"Top 5 search results for '{user_input}':")
+            for rank, (website_path, score) in enumerate(top_results, start=1):
+                # Extract the URL from the JSON file associated with the website
+                try:
+                    with open(website_path, 'r', encoding='utf-8') as json_file:
+                        json_data = json.load(json_file)
+                        url = json_data.get('url')  # Assuming the URL is stored under 'url' key
+                        if url:
+                            print(f"{rank}. {url} (Score: {score:.2f})")
+                        else:
+                            print(f"{rank}. URL not found (Score: {score:.2f})")
+                except (FileNotFoundError, json.JSONDecodeError) as e:
+                    print(f"Error reading JSON file {website_path}: {e}")
+                    print(f"{rank}. {website_path} (Score: {score:.2f})")
+
+        else:
+            print("Exiting search...")
+            break
+
 def main():
     # This path will change based on who it is. In your own local you have to change this
-    main_path = "C:/Users/Santiago/Desktop/121/m3"
-    document_folder = "C:/Users/Santiago/Desktop/121/m3/test"
-    invertedIndexLocation = "C:/Users/Santiago/Desktop/121/m3/ii"
-    shelveDirectory = "C:/Users/Santiago/Desktop/121/m3/shelve"
+    # NOTE you will also need to change this in search.py
+    main_path = "C:/Users/shake/Documents/GitHub/search_enginepy"
+    document_folder = "C:/Users/shake/Documents/GitHub/search_enginepy/ANALYST"
+    invertedIndexLocation = "C:/Users/shake/Documents/GitHub/search_enginepy/ii"
+    shelveDirectory = "C:/Users/shake/Documents/GitHub/search_enginepy/shelve"
     setup_shelve_dir(invertedIndexLocation)
 
     # go recursively and get all the files in the subdirectory
@@ -146,11 +200,14 @@ def main():
     inverted_index = run(inverted_index, file_mapper, document_paths, invertedIndexLocation)
 
     parse_shelve_files(shelveDirectory,main_path+"/output/")
+    """
     words = input("Query:")
     stemmedWords = [stemmer.stem(word) for word in words.split()]
     print(stemmedWords)
     compatibleWebsites = query(stemmedWords, inverted_index)
     print(top5Websites(stemmedWords,inverted_index, compatibleWebsites,shelveDirectory, file_mapper))
+    """
+    cmd_search(inverted_index, shelveDirectory, file_mapper)
 
 def top5Websites(listOfWords, index, websites, shelveDir, fileMapper):
     documentWordScores = defaultdict(float)
@@ -173,7 +230,7 @@ def top5Websites(listOfWords, index, websites, shelveDir, fileMapper):
                     # Some weird shelve specific thing, it has to be encoded so that you can read it.
                     docBytes = shelve_db.get(str(websiteId).encode(), None)
                     if docBytes is None:
-                        print("data is empty, this should never happen if it got up to this place. Something went wrong")
+                        # print("data is empty, this should never happen if it got up to this place. Something went wrong")
                         continue
                     
                     # Another weird shelve specific thing. Have to deserialize it, since I think its byte encoded? IDRK
