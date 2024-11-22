@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, render_template
+from search import *
 
 app = Flask(__name__)
 
@@ -23,11 +24,15 @@ def search():
         if not query:
             return jsonify({'error': 'No query provided'}), 400
 
-        # Process the query (get the length)
-        length = process_query(query)
+        # Perform the search operation using the query
+        results = search.web_search(query)
 
-        # Return the length as a JSON response
-        return jsonify({'length': length}), 200
+        if results is not None:
+            # Return the results as a JSON response
+            return jsonify({'results': results}), 200
+        else:
+            # Return an appropriate message if no results are found
+            return jsonify({'message': 'No results found'}), 404
 
     except Exception as e:
         # Return an error message with proper HTTP status
