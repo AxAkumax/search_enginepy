@@ -35,7 +35,7 @@ def convert_freq_stemming(response_content):
 
 def json_parse(filepath):
     try:
-        with open(filepath, "r") as file:
+        with open(filepath, "r+", encoding='utf-8') as file:
             file_data = json.load(file)
     except json.JSONDecodeError:
         return ""
@@ -44,7 +44,10 @@ def json_parse(filepath):
     for element in content(["script", "style"]):
         element.decompose()
 
-    text = content.get_text(separator=" ")
+    for anchor in content.find_all('a', href=True):
+        anchor.decompose()
+
+    text = ' '.join(content.get_text(separator=' ').split())
 
     tagDict = {
         #high importance

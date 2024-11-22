@@ -10,6 +10,7 @@ def open_shelve(filename, flag='r', protocol=None, writeback=False):
 def parse_shelve_files(shelve_folder, output_folder):
     # Ensure the output folder exists
     total_index_documents = set()
+    total_index_documents = set()
     total_unique_tokens = set()
     total_file_size = 0
 
