@@ -1,0 +1,5 @@
+pip install flask
+npm i bootstrap-icons
+
+
+#run website by running: python3 app.py
