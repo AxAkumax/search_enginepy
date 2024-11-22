@@ -1,3 +1,4 @@
+from urllib.parse import urlparse, urlunparse
 from parser import convert_response_to_words, compute_word_frequencies
 from nltk.stem import PorterStemmer
 from bs4 import BeautifulSoup
@@ -128,7 +129,7 @@ def setup_shelve_dir(shelve_dir):
     if not os.path.exists(shelve_dir):
         os.makedirs(shelve_dir)
 
-# use to search index through cmd
+# use to search index through cmd for debugging
 def cmd_search(inverted_index, shelveDirectory, file_mapper):
     while True:
         user_input = input("Enter your inputs (Q to quit): ")
@@ -179,6 +180,47 @@ def cmd_search(inverted_index, shelveDirectory, file_mapper):
             print("Exiting search...")
             break
 
+def web_search(user_input, inverted_index, shelveDirectory, file_mapper):
+    # Preprocess user input into stemmed words
+    stemmed_words = [stemmer.stem(word) for word in user_input.split()]
+
+    # Retrieve compatible documents using the `query` function
+    compatible_docs = query(stemmed_words, inverted_index)
+
+    if not compatible_docs:
+        return []  # Return empty list if no compatible documents found
+    
+    # Get the top 5 websites based on the `top5Websites` function
+    top_websites = top5Websites(stemmed_words, inverted_index, compatible_docs, shelveDirectory, file_mapper)
+
+    search_results = []
+    visited_urls = set()
+
+    # Format the top websites for output
+    for website, score in top_websites:
+        try:
+            with open(website, 'r', encoding='utf-8') as json_file:
+                json_data = json.load(json_file)
+                url = json_data.get('url')  # Assuming the URL is stored under 'url' key
+                if url:
+                    parsed_url = urlparse(url)
+                    # Normalize URL by removing file extensions, fragments, and queries
+                    path_without_extension = re.sub(r'\.\w+$', '', parsed_url.path)
+                    normalized_url = urlunparse(parsed_url._replace(path=path_without_extension, fragment='', query=''))
+                    
+                    # Check for duplicate and invalid URLs
+                    if not re.search(r'\.\w+$', normalized_url) and normalized_url not in visited_urls:
+                        search_results.append((normalized_url, score))
+                        visited_urls.add(normalized_url)
+                else:
+                    print(f"URL not found in {website} (Score: {score:.2f})")
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"Error reading JSON file {website}: {e}")
+            # If the URL is missing or there's an error, still append the website path and score
+            search_results.append((website, score))
+
+    return search_results
+
 def main():
     # This path will change based on who it is. In your own local you have to change this
     # NOTE you will also need to change this in search.py
@@ -200,14 +242,8 @@ def main():
     inverted_index = run(inverted_index, file_mapper, document_paths, invertedIndexLocation)
 
     parse_shelve_files(shelveDirectory,main_path+"/output/")
-    """
-    words = input("Query:")
-    stemmedWords = [stemmer.stem(word) for word in words.split()]
-    print(stemmedWords)
-    compatibleWebsites = query(stemmedWords, inverted_index)
-    print(top5Websites(stemmedWords,inverted_index, compatibleWebsites,shelveDirectory, file_mapper))
-    """
-    cmd_search(inverted_index, shelveDirectory, file_mapper)
+    return inverted_index, shelveDirectory, file_mapper
+    
 
 def top5Websites(listOfWords, index, websites, shelveDir, fileMapper):
     documentWordScores = defaultdict(float)
@@ -273,4 +309,8 @@ def query(stemmed, invertedIndex):
     return compatible_docs
 
 if __name__ == "__main__":
-    main()
+     # Run the setup and indexing process
+    inverted_index, shelveDirectory, file_mapper = main()
+
+    # Now call cmd_search with the setup data to avoid calling in app.py
+    cmd_search(inverted_index, shelveDirectory, file_mapper)

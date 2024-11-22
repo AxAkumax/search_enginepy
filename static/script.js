@@ -33,7 +33,12 @@ document.getElementById('searchForm').addEventListener('submit', function(event)
         }
 
         const resultElement = document.getElementById('result');
-        resultElement.innerHTML = `<p>The length of your query is: ${data.length}</p>`; // Update the HTML with the length
+        if (data.results && data.results.length > 0) {
+            // Display each result URL on a new line
+            resultElement.innerHTML = data.results.map(item => `<p><a href="${item[0]}" target="_blank">${item[0]}</a> - Score: ${item[1]}</p>`).join('');
+        } else {
+            resultElement.innerHTML = '<p>No results found.</p>';
+        }
     })
     .catch(error => {
         console.error('Error:', error);
