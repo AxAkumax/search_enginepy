@@ -8,7 +8,6 @@ def open_shelve(filename, flag='r', protocol=None, writeback=False):
     return shelve.Shelf(dbm.open(filename, flag), protocol=protocol, writeback=writeback)
 
 def parse_shelve_files(shelve_folder, output_folder):
-    # Ensure the output folder exists
     total_index_documents = set()
     total_index_documents = set()
     total_unique_tokens = set()

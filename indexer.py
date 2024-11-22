@@ -109,9 +109,7 @@ def open_shelve(filename, flag='c', protocol=None, writeback=False):
     return shelve.Shelf(dbm.open(filename, flag), protocol=protocol, writeback=writeback)
 
 def run(indexer, file_mapper, document_paths, invertedIndexLocation, max_threads=10):
-    # Use the passed 'indexer' directly, no need to create a new InvertedIndex object
     with ThreadPoolExecutor(max_threads) as executor:
-        # Create a "task" with the file. Each file will be handled
         fileTask = {executor.submit(index_document, file_path, indexer, file_mapper): file_path for file_path in document_paths}
 
         for future in as_completed(fileTask):
