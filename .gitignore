@@ -11,6 +11,9 @@ shelve/
 output/
 output.txt
 node_modules
+optimized/
+ii/
+combined/
 
 # C extensions
 *.so
