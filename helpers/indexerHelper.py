@@ -207,3 +207,54 @@ def compute_word_frequencies(token_list: list) -> dict:
     for token in token_list:
         frequencies[token] = frequencies.get(token, 0) + 1
     return frequencies
+
+file_list = ['optimized/optimizedII_a.pkl', 'optimized/optimizedII_b.pkl', 'optimized/optimizedII_c.pkl', 
+             'optimized/optimizedII_d.pkl', 'optimized/optimizedII_e.pkl', 'optimized/optimizedII_f.pkl', 
+             'optimized/optimizedII_g.pkl', 'optimized/optimizedII_h.pkl', 'optimized/optimizedII_i.pkl', 
+             'optimized/optimizedII_j.pkl', 'optimized/optimizedII_k.pkl', 'optimized/optimizedII_l.pkl',
+             'optimized/optimizedII_m.pkl', 'optimized/optimizedII_n.pkl', 'optimized/optimizedII_o.pkl', 
+             'optimized/optimizedII_p.pkl', 'optimized/optimizedII_q.pkl', 'optimized/optimizedII_r.pkl',
+             'optimized/optimizedII_s.pkl', 'optimized/optimizedII_t.pkl', 'optimized/optimizedII_u.pkl', 
+             'optimized/optimizedII_v.pkl', 'optimized/optimizedII_w.pkl', 'optimized/optimizedII_x.pkl', 
+             'optimized/optimizedII_y.pkl', 'optimized/optimizedII_z.pkl', 'optimized/optimizedII_others.pkl']
+
+def total_documents():
+    """Calculate total unique documents across all files."""
+    unique_docs = set()
+    for pkl_file_path in file_list:
+        with open(pkl_file_path, 'rb') as pkl_file:
+            data = pickle.load(pkl_file)
+            for term, postings in data.items():
+                for doc_id, _, _ in postings:
+                    unique_docs.add(doc_id)
+    return len(unique_docs)
+
+def calculate_and_save_tf_idf():
+    """Update TF-IDF scores and overwrite files."""
+    total_docs = total_documents()
+    
+    for pkl_file_path in file_list:
+        with open(pkl_file_path, 'rb') as pkl_file:
+            data = pickle.load(pkl_file)
+            new_data = defaultdict(list)
+            
+            for term, postings in data.items():
+                df = len(postings)
+                idf = math.log10(total_docs / df) if total_docs > 0 else -1000
+
+                tf_idf_scores = []
+                for doc_id, freq, score in postings:
+                    tf = 1 + math.log10(freq) if freq > 0 else 0
+                    tf_idf = tf * idf
+                    tf_idf_scores.append((doc_id, tf_idf, score))
+                
+                # Sort tf-idf scores with tiebreaker
+                tf_idf_scores.sort(key=lambda x: (x[1], -x[2]), reverse=True)
+                new_data[term] = tf_idf_scores
+            
+            print(f"Processed file: {pkl_file_path}, terms processed: {len(new_data)}")
+        
+        # Overwrite the file with updated data
+        with open(pkl_file_path, 'wb') as pkl_file:
+            pickle.dump(new_data, pkl_file)
+            print(f"Updated and overwrote: {pkl_file_path}")

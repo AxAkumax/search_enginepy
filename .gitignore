@@ -12,8 +12,13 @@ output/
 output.txt
 node_modules
 optimized/
+optimized copy/
 ii/
 combined/
+
+output.txt
+output2.txt
+sample.py
 
 # C extensions
 *.so

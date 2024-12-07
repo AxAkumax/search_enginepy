@@ -29,7 +29,6 @@ def isBuilt(location):
     return len(files) > 0
 
 
-
 def convert_freq_stemming(response_content):
     try:
         text = convert_response_to_words(response_content)
@@ -138,12 +137,12 @@ def main():
     # This path will change based on who it is. In your own local you have to change this
     startTime = time.time()
 
-    main_path = "C:/Users/Santiago/Desktop/121/m3"
-    document_folder = "C:/Users/Santiago/Desktop/121/m3/developer"
-    invertedIndexLocation = "C:/Users/Santiago/Desktop/121/m3/ii"
-    invertedIndexOptimized = "C:/Users/Santiago/Desktop/121/m3/optimized"
-    invertedIndexCombined= "C:/Users/Santiago/Desktop/121/m3/combined"
-    shelveDirectory = "C:/Users/Santiago/Desktop/121/m3/shelve"
+    main_path = "/Users/akshitaakumalla/search_enginepy"
+    document_folder = "/Users/akshitaakumalla/search_enginepy/DEV"
+    invertedIndexLocation = "/Users/akshitaakumalla/search_enginepy/ii"
+    invertedIndexOptimized = "/Users/akshitaakumalla/search_enginepy/optimized"
+    invertedIndexCombined= "/Users/akshitaakumalla/search_enginepy/combined"
+    shelveDirectory = "/Users/akshitaakumalla/search_enginepy/shelve"
     setup_shelve_dir(invertedIndexLocation)
 
     # go recursively and get all the files in the subdirectory
@@ -160,6 +159,9 @@ def main():
         inverted_index = run(inverted_index, file_mapper, document_paths, invertedIndexLocation)
         inverted_index.flush_all_buffers()
         inverted_index.optimizeIndex()
+    
+    #add renewed optimized index with tf-df sorted list of doc-id
+    #calculate_and_save_tf_idf()
 
     parse_shelve_files(invertedIndexLocation,main_path+"/output/", file_mapper)
     words = input("Query:")
