@@ -33,41 +33,25 @@ class InvertedIndex:
 
     def optimizeIndex(self):
         files = [f for f in os.listdir(self.pickle_dir) if f.endswith('.pkl')]
-        combined_index = defaultdict(list)
 
-        for file in files:
-            path = os.path.join(self.pickle_dir, file)
-            with open(path, 'rb') as f:
-                partial_index = pickle.load(f)
-                for term, postings in partial_index.items():
-                    combined_index[term].extend(postings)
+        for char in list("abcdefghijklmnopqrstuvwxyz") + ["others"]:
+            sectioned_index = defaultdict(list)
 
-        output_path = os.path.join(self.fII, 'combinedII.pkl')
-        with open(output_path, 'wb') as f:
-            pickle.dump(combined_index, f)
+            for file in files:
+                path = os.path.join(self.pickle_dir, file)
+                with open(path, 'rb') as f:
+                    partial_index = pickle.load(f)
+                    for term, postings in partial_index.items():
+                        first_char = term[0].lower()
+                        if char == "others" and not ('a' <= first_char <= 'z'):
+                            sectioned_index[term].extend(postings)
+                        elif first_char == char:
+                            sectioned_index[term].extend(postings)
 
-        sectioned_indexes = defaultdict(lambda: defaultdict(list))
-        others_index = defaultdict(list)
-
-
-        for term, postings in combined_index.items():
-            first_char = term[0].lower()
-            if 'a' <= first_char <= 'z':
-                sectioned_indexes[first_char][term] = postings
-            else:
-                others_index[term] = postings
-
-
-        for char, index in sectioned_indexes.items():
-            output_path = os.path.join(self.oII, f'optimizedII_{char}.pkl')
+            output_filename = f'optimizedII_{char}.pkl' if char != "others" else 'optimizedII_others.pkl'
+            output_path = os.path.join(self.oII, output_filename)
             with open(output_path, 'wb') as f:
-                pickle.dump(index, f)
-
-        if others_index:
-            output_path = os.path.join(self.oII, 'optimizedII_others.pkl')
-            with open(output_path, 'wb') as f:
-                pickle.dump(others_index, f)
-            print(f"Saved index section for terms starting with non-alphabetic characters to {output_path}")
+                pickle.dump(sectioned_index, f)
 
 
     def _load_pickle(self, path):
@@ -136,7 +120,8 @@ class fileMapper:
                 self.fileToId[filePath] = self.counter
                 self.idToFile[self.counter] = filePath
                 self.counter +=1
-            print (f"amount of files iterated over: {self.counter}")
+            if (self.counter % 1000 == 0):
+                print (f"amount of files iterated over: {self.counter}")
             return self.counter
 
     def getFileById(self,id):
