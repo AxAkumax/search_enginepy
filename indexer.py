@@ -170,8 +170,7 @@ def main():
         print("file_mapper.pkl not found, starting with an empty file mapper.")
 
     parse_shelve_files(invertedIndexLocation,main_path+"/output/")
-    # Start the search functionality
-    cmd_search(inverted_index, invertedIndexOptimized, file_mapper)
+    return inverted_index, invertedIndexOptimized, file_mapper
 
 # use to search index through cmd for debugging
 def cmd_search(inverted_index, invertedIndexOptimized, file_mapper):
@@ -200,7 +199,8 @@ def cmd_search(inverted_index, invertedIndexOptimized, file_mapper):
             if not top_results:
                 print("No results found after ranking!!!")
                 continue
-
+            
+            visited_urls = set()
             print(f"Top 5 search results for '{user_input}':")
             for rank, (website_path, score) in enumerate(top_results, start=1):
                 # Extract the URL from the JSON file associated with the website
@@ -209,7 +209,17 @@ def cmd_search(inverted_index, invertedIndexOptimized, file_mapper):
                         json_data = json.load(json_file)
                         url = json_data.get('url')  # Assuming the URL is stored under 'url' key
                         if url:
-                            print(f"{rank}. {url} (Score: {score:.2f})")
+                            parsed_url = urlparse(url)
+                            # Normalize URL by removing file extensions, fragments, and queries
+                            path_without_extension = re.sub(r'\.\w+$', '', parsed_url.path)
+                            normalized_url = urlunparse(parsed_url._replace(path=path_without_extension, fragment='', query=''))
+                            
+                            # Check for duplicate and invalid URLs
+                            if not re.search(r'\.\w+$', normalized_url) and normalized_url not in visited_urls:
+                                print(f"{rank}. {normalized_url} (Score: {score:.2f})")
+                                visited_urls.add(normalized_url)
+                            else:
+                                print(f"{rank}. Invalid or duplicate URL (Score: {score:.2f})")
                         else:
                             print(f"{rank}. URL not found (Score: {score:.2f})")
                 except (FileNotFoundError, json.JSONDecodeError) as e:
@@ -220,7 +230,7 @@ def cmd_search(inverted_index, invertedIndexOptimized, file_mapper):
             print("Exiting search...")
             break
 
-def web_search(user_input, inverted_index, shelveDirectory, file_mapper):
+def web_search(user_input, inverted_index, invertedIndexOptimized, file_mapper):
     # Preprocess user input into stemmed words
     stemmed_words = [stemmer.stem(word) for word in user_input.split()]
 
@@ -231,8 +241,8 @@ def web_search(user_input, inverted_index, shelveDirectory, file_mapper):
         return []  # Return empty list if no compatible documents found
     
     # Get the top 5 websites based on the `top5Websites` function
-    top_websites = top5Websites(stemmed_words, inverted_index, compatible_docs, shelveDirectory, file_mapper)
-
+    top_websites = top5Websites(compatible_docs, invertedIndexOptimized, file_mapper)
+    
     search_results = []
     visited_urls = set()
 
@@ -318,4 +328,7 @@ def query(stemmed, invertedIndex):
 
 if __name__ == "__main__":
     # Run the setup and indexing process
-    main()
+    inverted_index, invertedIndexOptimized, file_mapper = main()
+    
+    # Start the search functionality
+    cmd_search(inverted_index, invertedIndexOptimized, file_mapper)
