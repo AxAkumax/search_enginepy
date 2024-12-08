@@ -254,9 +254,12 @@ def web_search(user_input, inverted_index, invertedIndexOptimized, file_mapper):
     
     search_results = []
     visited_urls = set()
+    printed_results = 0
 
     # Format the top websites for output
     for website, score in top_websites:
+        if printed_results >= 5:
+            break
         try:
             with open(website, 'r', encoding='utf-8') as json_file:
                 json_data = json.load(json_file)
@@ -271,6 +274,10 @@ def web_search(user_input, inverted_index, invertedIndexOptimized, file_mapper):
                     if not re.search(r'\.\w+$', normalized_url) and normalized_url not in visited_urls:
                         search_results.append((normalized_url, score))
                         visited_urls.add(normalized_url)
+                        printed_results += 1
+                    else:
+                                #print("invalid link")
+                                continue
                 else:
                     continue
         except (FileNotFoundError, json.JSONDecodeError) as e:
