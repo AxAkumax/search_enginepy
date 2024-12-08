@@ -121,9 +121,9 @@ class fileMapper:
                 self.fileToId[filePath] = self.counter
                 self.idToFile[self.counter] = filePath
                 self.counter +=1
-            #if (self.counter % 1000 == 0):
-            print (f"amount of files iterated over: {self.counter}")
-            self.save_file_mapper("file_mapper.pkl")
+            if (self.counter % 1000 == 0):
+                print (f"amount of files iterated over: {self.counter}")
+                self.save_file_mapper("file_mapper.pkl")
             return self.counter
 
     def getFileById(self,id):

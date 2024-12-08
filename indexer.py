@@ -138,7 +138,7 @@ def main():
     # This path will change based on who it is. In your own local you have to change this
 
     main_path = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy1"
-    document_folder = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy1/ANALYST"
+    document_folder = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy1/developer"
     invertedIndexLocation = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy1/ii"
     invertedIndexOptimized = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy1/optimized"
     invertedIndexCombined= "C:/Users/Mai Luong/Documents/GitHub/search_enginepy1/combined"
