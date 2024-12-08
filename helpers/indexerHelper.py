@@ -7,6 +7,7 @@ import pickle
 import shelve
 import os
 import pprint
+import math
 
 stop_words = {'a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and', 'any', 'are', "aren't", 'as', 'at', 'be', 'because', 'been', 'before', 'being', 'below', 'between', 'both', 'but', 'by', "can't", 'cannot', 'could', "couldn't", 'did', "didn't", 'do', 'does', "doesn't", 'doing', "don't", 'down', 'during', 'each', 'few', 'for', 'from', 'further', 'had', "hadn't", 'has', "hasn't", 'have', "haven't", 'having', 'he', "he'd", "he'll", "he's", 'her', 'here', "here's", 'hers', 'herself', 'him', 'himself', 'his', 'how', "how's", 'i', "i'd", "i'll", "i'm", "i've", 'if', 'in', 'into', 'is', "isn't", 'it', "it's", 'its', 'itself', "let's", 'me', 'more', 'most', "mustn't", 'my', 'myself', 'no', 'nor', 'not', 'of', 'off', 'on', 'once', 'only', 'or', 'other', 'ought', 'our', 'ours', 'ourselves', 'out', 'over', 'own', 'same', "shan't", 'she', "she'd", "she'll", "she's", 'should', "shouldn't", 'so', 'some', 'such', 'than', 'that', "that's", 'the', 'their', 'theirs', 'them', 'themselves', 'then', 'there', "there's", 'these', 'they', "they'd", "they'll", "they're", "they've", 'this', 'those', 'through', 'to', 'too', 'under', 'until', 'up', 'very', 'was', "wasn't", 'we', "we'd", "we'll", "we're", "we've", 'were', "weren't", 'what', "what's", 'when', "when's", 'where', "where's", 'which', 'while', 'who', "who's", 'whom', 'why', "why's", 'with', "won't", 'would', "wouldn't", 'you', "you'd", "you'll", "you're", "you've", 'your', 'yours', 'yourself', 'yourselves', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'}
 
@@ -120,8 +121,9 @@ class fileMapper:
                 self.fileToId[filePath] = self.counter
                 self.idToFile[self.counter] = filePath
                 self.counter +=1
-            if (self.counter % 1000 == 0):
-                print (f"amount of files iterated over: {self.counter}")
+            #if (self.counter % 1000 == 0):
+            print (f"amount of files iterated over: {self.counter}")
+            self.save_file_mapper("file_mapper.pkl")
             return self.counter
 
     def getFileById(self,id):
@@ -129,6 +131,25 @@ class fileMapper:
     
     def getFileByPath(self,filePath):
         return self.fileToId.get(filePath,None)
+    
+    def save_file_mapper(self, filename):
+        # Save the fileToId, idToFile, and counter without the lock
+        data = {
+            'fileToId': self.fileToId,
+            'idToFile': self.idToFile,
+            'counter': self.counter
+        }
+        with open(filename, 'wb') as f:
+            pickle.dump(data, f)
+
+    def load_file_mapper(self, filename):
+        # Load the data and reinitialize the lock
+        with open(filename, 'rb') as f:
+            data = pickle.load(f)
+        self.fileToId = data['fileToId']
+        self.idToFile = data['idToFile']
+        self.counter = data['counter']
+        self.lock = threading.Lock()
 
 
 #todo calculate the tf-idf

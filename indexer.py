@@ -13,6 +13,7 @@ import dbm.dumb as dbm
 from shelve_parser import parse_shelve_files
 import time
 import heapq
+import pickle
 
 import pprint
 
@@ -135,14 +136,13 @@ def setup_shelve_dir(shelve_dir):
 
 def main():
     # This path will change based on who it is. In your own local you have to change this
-    startTime = time.time()
 
-    main_path = "/Users/akshitaakumalla/search_enginepy"
-    document_folder = "/Users/akshitaakumalla/search_enginepy/DEV"
-    invertedIndexLocation = "/Users/akshitaakumalla/search_enginepy/ii"
-    invertedIndexOptimized = "/Users/akshitaakumalla/search_enginepy/optimized"
-    invertedIndexCombined= "/Users/akshitaakumalla/search_enginepy/combined"
-    shelveDirectory = "/Users/akshitaakumalla/search_enginepy/shelve"
+    main_path = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy1"
+    document_folder = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy1/ANALYST"
+    invertedIndexLocation = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy1/ii"
+    invertedIndexOptimized = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy1/optimized"
+    invertedIndexCombined= "C:/Users/Mai Luong/Documents/GitHub/search_enginepy1/combined"
+    shelveDirectory = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy1/shelve"
     setup_shelve_dir(invertedIndexLocation)
 
     # go recursively and get all the files in the subdirectory
@@ -161,18 +161,20 @@ def main():
         inverted_index.optimizeIndex()
     
     #add renewed optimized index with tf-df sorted list of doc-id
-    #calculate_and_save_tf_idf()
+    calculate_and_save_tf_idf()
+    
+    try:
+        file_mapper.load_file_mapper("file_mapper.pkl")
+        print("File mapper loaded successfully.")
+    except FileNotFoundError:
+        print("file_mapper.pkl not found, starting with an empty file mapper.")
 
-    parse_shelve_files(invertedIndexLocation,main_path+"/output/", file_mapper)
-    words = input("Query:")
-    stemmedWords = [stemmer.stem(word) for word in words.split()]
-    print(stemmedWords)
-    compatibleWebsites = query(stemmedWords, inverted_index)
-
-    #print(top5Websites(stemmedWords,inverted_index, compatibleWebsites,invertedIndexOptimized, file_mapper))
+    parse_shelve_files(invertedIndexLocation,main_path+"/output/")
+    # Start the search functionality
+    cmd_search(inverted_index, invertedIndexOptimized, file_mapper)
 
 # use to search index through cmd for debugging
-def cmd_search(inverted_index, shelveDirectory, file_mapper):
+def cmd_search(inverted_index, invertedIndexOptimized, file_mapper):
     while True:
         user_input = input("Enter your inputs (Q to quit): ")
 
@@ -181,6 +183,7 @@ def cmd_search(inverted_index, shelveDirectory, file_mapper):
             stemmed_words = [stemmer.stem(word) for word in user_input.split()]
 
             start_time = time.time()
+
             # Use the query function to get compatible websites
             compatible_websites = query(stemmed_words, inverted_index)
 
@@ -189,13 +192,8 @@ def cmd_search(inverted_index, shelveDirectory, file_mapper):
                 continue
 
             # Use top5Websites to score and rank the websites
-            top_results = top5Websites(
-                listOfWords = stemmed_words,
-                index = inverted_index,
-                websites = compatible_websites,
-                shelveDir = shelveDirectory,
-                fileMapper = file_mapper
-            )
+            top_results = top5Websites(compatible_websites, invertedIndexOptimized, file_mapper)
+
             search_time = (time.time() - start_time) * 1000
             print(f"This search took {search_time:.2f} ms")
 
@@ -263,58 +261,48 @@ def web_search(user_input, inverted_index, shelveDirectory, file_mapper):
 
     return search_results
 
-def top5Websites(listOfWords, index, websites, optimizedIndex, fileMapper):
+def top5Websites( websites, optimizedIndex, file_mapper):
     documentWordScores = defaultdict(float)
     websiteNames = set()
+    websiteData = {}
     for website in websites:
-        for id, freq, wordScore in website:
-            websiteNames.add(fileMapper.getFileById(id-1))
+        print(f"Website Data: {website}, Type: {type(website)}")
+        if len(website) == 3:
+            id, freq, wordScore = website
+            file_path = file_mapper.getFileById(id - 1)
+            websiteNames.add(file_path)
+            websiteData[file_path] = (wordScore, id, freq)
+            print(f"ID: {id} and file: {file_mapper.getFileById(id - 1)}")
 
-    # Get all of the files from the shelve directory, there is going to be 1 per thread
-    files = [f for f in os.listdir(optimizedIndex) if f.endswith('.pkl')]
-
+    files = [f for f in os.listdir(optimizedIndex) if f.endswith(".pkl")]
 
     for fileName in files:
         shelve_path = os.path.join(optimizedIndex, fileName)
-        data = None
-        with open(shelve_path, 'rb') as f:
-            data = pickle.load(f)
         try:
-            with dbm.open(shelve_path, flag='r') as shelve_db:
-                for websitePath, websiteId in websiteNames.items():
+            with open(shelve_path, "rb") as f:
+                data = pickle.load(f)
 
-                    # Some weird shelve specific thing, it has to be encoded so that you can read it.
-                    docBytes = shelve_db.get(str(websiteId).encode(), None)
-                    if docBytes is None:
-                        print("data is empty, this should never happen if it got up to this place. Something went wrong")
-                        continue
-                    
-                    # Another weird shelve specific thing. Have to deserialize it, since I think its byte encoded? IDRK
-                    docData = pickle.loads(docBytes)
+                for website in websiteNames:
+                    # print(f"Website Data: {website}, Type: {type(website)}")
 
-                    filePath = docData.get('file_path')
-                    if filePath is None:
-                        #once again, this should never happen. if it gets inside this, something went wrong
+                    if website not in websiteData:
+                        print(f"Website {website} not found in websiteData!")
                         continue
 
-                    tempScore = 0
-                    word_freq = docData.get('wordFreq', {})
-                    for word in listOfWords:
-                        tempScore += word_freq.get(word, 0)
+                    wordScore, website_id, freq = websiteData[website]
 
-                    documentWordScores[websitePath] += tempScore
+                    # Combine the calculated score with the wordScore and freq
+                    # Here we're summing freq + wordScore + tempScore to calculate relevance
+                    documentWordScores[website] += freq
 
-        except dbm.error as e:
-            print(f"Error opening shelve {shelve_path}: {e}")
         except Exception as e:
-            print(f"Unexpected error with shelve {shelve_path}: {e}")
+            print(f"Error opening pickle file {shelve_path}: {e}")
 
     # Kth largest, O(N * log(5)) instead of sorting.
     top5_docs = heapq.nlargest(5, documentWordScores.items(), key=lambda x: x[1])
-    top5_websites = [tuple([website,score]) for website, score in top5_docs]
+    top5_websites = [tuple([website, score]) for website, score in top5_docs]
 
     return top5_websites
-
 
 def query(stemmed, invertedIndex):
     compatible_docs = None
@@ -329,8 +317,5 @@ def query(stemmed, invertedIndex):
     return compatible_docs
 
 if __name__ == "__main__":
-     # Run the setup and indexing process
-    inverted_index, shelveDirectory, file_mapper = main()
-
-    # Now call cmd_search with the setup data to avoid calling in app.py
-    cmd_search(inverted_index, shelveDirectory, file_mapper)
+    # Run the setup and indexing process
+    main()
