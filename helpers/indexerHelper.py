@@ -152,7 +152,6 @@ class fileMapper:
         self.lock = threading.Lock()
 
 
-#todo calculate the tf-idf
 def calculateWordScores(text, tagDict):
 
     #These are just made up, i guess we'll probably have to test and see which ones work best

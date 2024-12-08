@@ -157,11 +157,10 @@ def main():
     if (not isBuilt(invertedIndexLocation)):
         print('inverted index is not built, building it right now')
         inverted_index = run(inverted_index, file_mapper, document_paths, invertedIndexLocation)
+        #add renewed optimized index with tf-df sorted list of doc-id
+        calculate_and_save_tf_idf()
         inverted_index.flush_all_buffers()
         inverted_index.optimizeIndex()
-    
-    #add renewed optimized index with tf-df sorted list of doc-id
-    calculate_and_save_tf_idf()
     
     try:
         file_mapper.load_file_mapper("file_mapper.pkl")
@@ -180,6 +179,7 @@ def cmd_search(inverted_index, invertedIndexOptimized, file_mapper):
         if user_input.lower() != "q":
             # Stem the user's input
             stemmed_words = [stemmer.stem(word) for word in user_input.split()]
+            print(stemmed_words)
 
             start_time = time.time()
 
@@ -202,12 +202,17 @@ def cmd_search(inverted_index, invertedIndexOptimized, file_mapper):
             
             visited_urls = set()
             print(f"Top 5 search results for '{user_input}':")
+            printed_results = 0  # Track the number of valid results printed
+
             for rank, (website_path, score) in enumerate(top_results, start=1):
+                if printed_results >= 5:
+                    break
+                
                 # Extract the URL from the JSON file associated with the website
                 try:
                     with open(website_path, 'r', encoding='utf-8') as json_file:
                         json_data = json.load(json_file)
-                        url = json_data.get('url')  # Assuming the URL is stored under 'url' key
+                        url = json_data.get('url')
                         if url:
                             parsed_url = urlparse(url)
                             # Normalize URL by removing file extensions, fragments, and queries
@@ -216,15 +221,19 @@ def cmd_search(inverted_index, invertedIndexOptimized, file_mapper):
                             
                             # Check for duplicate and invalid URLs
                             if not re.search(r'\.\w+$', normalized_url) and normalized_url not in visited_urls:
-                                print(f"{rank}. {normalized_url} (Score: {score:.2f})")
+                                print(f"{printed_results + 1}. {normalized_url} (Score: {score:.2f})")
                                 visited_urls.add(normalized_url)
+                                printed_results += 1 
                             else:
-                                print(f"{rank}. Invalid or duplicate URL (Score: {score:.2f})")
+                                #print("invalid link")
+                                continue 
                         else:
-                            print(f"{rank}. URL not found (Score: {score:.2f})")
+                            #print("invalid JSON link")
+                            continue 
                 except (FileNotFoundError, json.JSONDecodeError) as e:
                     print(f"Error reading JSON file {website_path}: {e}")
-                    print(f"{rank}. {website_path} (Score: {score:.2f})")
+                    print(f"{printed_results + 1}. {website_path} (Score: {score:.2f})")
+                    printed_results += 1 
 
         else:
             print("Exiting search...")
@@ -263,7 +272,7 @@ def web_search(user_input, inverted_index, invertedIndexOptimized, file_mapper):
                         search_results.append((normalized_url, score))
                         visited_urls.add(normalized_url)
                 else:
-                    print(f"URL not found in {website} (Score: {score:.2f})")
+                    continue
         except (FileNotFoundError, json.JSONDecodeError) as e:
             print(f"Error reading JSON file {website}: {e}")
             # If the URL is missing or there's an error, still append the website path and score
@@ -276,13 +285,13 @@ def top5Websites( websites, optimizedIndex, file_mapper):
     websiteNames = set()
     websiteData = {}
     for website in websites:
-        print(f"Website Data: {website}, Type: {type(website)}")
+        # print(f"Website Data: {website}, Type: {type(website)}")
         if len(website) == 3:
             id, freq, wordScore = website
             file_path = file_mapper.getFileById(id - 1)
             websiteNames.add(file_path)
             websiteData[file_path] = (wordScore, id, freq)
-            print(f"ID: {id} and file: {file_mapper.getFileById(id - 1)}")
+            # print(f"ID: {id} and file: {file_mapper.getFileById(id - 1)}")
 
     files = [f for f in os.listdir(optimizedIndex) if f.endswith(".pkl")]
 
@@ -294,37 +303,45 @@ def top5Websites( websites, optimizedIndex, file_mapper):
 
                 for website in websiteNames:
                     # print(f"Website Data: {website}, Type: {type(website)}")
-
                     if website not in websiteData:
                         print(f"Website {website} not found in websiteData!")
                         continue
 
                     wordScore, website_id, freq = websiteData[website]
-
                     # Combine the calculated score with the wordScore and freq
-                    # Here we're summing freq + wordScore + tempScore to calculate relevance
+                    # Here we're looking at freq score to calculate relevance
                     documentWordScores[website] += freq
 
         except Exception as e:
             print(f"Error opening pickle file {shelve_path}: {e}")
 
     # Kth largest, O(N * log(5)) instead of sorting.
-    top5_docs = heapq.nlargest(5, documentWordScores.items(), key=lambda x: x[1])
+    top5_docs = heapq.nlargest(10, documentWordScores.items(), key=lambda x: x[1])
     top5_websites = [tuple([website, score]) for website, score in top5_docs]
 
     return top5_websites
 
 def query(stemmed, invertedIndex):
-    compatible_docs = None
+    # Check if there are tokens to process
+    if not stemmed:
+        return []
 
-    for word in stemmed:
-        docs = invertedIndex.get_documents(word)
-        if compatible_docs is None:
-            compatible_docs = docs
-        else:
-            compatible_docs = compatible_docs.intersection(docs)
+    first_token = stemmed[0]
+    documents = invertedIndex.get_documents(first_token)
+    #print(first_token, documents)
+    documents_set = set(doc[0] for doc in documents if isinstance(doc, tuple))
+    if not documents_set:
+        return []
 
-    return compatible_docs
+    for token in stemmed[1:]:
+        token_docs = invertedIndex.get_documents(token)
+        #print(token, token_docs)
+        token_docs_set = set(doc[0] for doc in token_docs if isinstance(doc, tuple))
+        documents_set &= token_docs_set
+        if not documents_set:
+            return []
+
+    return documents
 
 if __name__ == "__main__":
     # Run the setup and indexing process
