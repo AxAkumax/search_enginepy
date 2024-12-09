@@ -54,5 +54,5 @@ Here are queries we used to test our search engine:
 9. 1 12 23 34 45 56 7
 10. can will went for ^ * i. o. l+ 12 4 3 8 
 
-Issues: Inputs with primarily numbers performed poorly compared to inputs with just words.
-We would want to improve the way we built the inverted index such as using a positional index.
+Issues: One of the main issues we had was with inputs that were primarily numbers had performed poorly compared to inputs with just words.
+We would want to improve the way we built the inverted index such as using a positional index and this can significantly help the performance and reduce the overall query time for our search engine.
