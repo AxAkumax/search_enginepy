@@ -137,12 +137,12 @@ def setup_shelve_dir(shelve_dir):
 def main():
     # This path will change based on who it is. In your own local you have to change this
 
-    main_path = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy/search_enginepy"
-    document_folder = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy/search_enginepy/ANALYST"
-    invertedIndexLocation = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy/search_enginepy/ii"
-    invertedIndexOptimized = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy/search_enginepy/optimized"
-    invertedIndexCombined= "C:/Users/Mai Luong/Documents/GitHub/search_enginepy/search_enginepy/combined"
-    shelveDirectory = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy/search_enginepy/shelve"
+    main_path = "/Users/akshitaakumalla/search_enginepy"
+    document_folder = "/Users/akshitaakumalla/search_enginepy/DEV"
+    invertedIndexLocation = "/Users/akshitaakumalla/search_enginepy/ii"
+    invertedIndexOptimized = "/Users/akshitaakumalla/search_enginepy/optimized"
+    invertedIndexCombined= "/Users/akshitaakumalla/search_enginepy/combined"
+    shelveDirectory = "/Users/akshitaakumalla/search_enginepy/shelve"
     setup_shelve_dir(invertedIndexLocation)
 
     # go recursively and get all the files in the subdirectory
@@ -159,9 +159,11 @@ def main():
         inverted_index = run(inverted_index, file_mapper, document_paths, invertedIndexLocation)
         inverted_index.flush_all_buffers()
         inverted_index.optimizeIndex()
-    else:
-        #add renewed optimized index with tf-df sorted list of doc-id
         calculate_and_save_tf_idf()
+    
+    # else:
+    #     #add renewed optimized index with tf-df sorted list of doc-id
+    #     calculate_and_save_tf_idf()
     
     try:
         file_mapper.load_file_mapper("file_mapper.pkl")
@@ -189,7 +191,7 @@ def cmd_search(inverted_index, file_mapper, invertedIndexOptimized):
             start_time = time.time()
             # Use top5Websites to score and rank the websites
             top_results = top5Websites(stemmed_words, inverted_index, file_mapper, invertedIndexOptimized)
-            search_time = (time.time() - start_time) * 1000
+            search_time = (time.time() - start_time) * 10
             print(f"This search took {search_time:.2f} ms")
 
             if not top_results:
@@ -243,7 +245,7 @@ def web_search(user_input, inverted_index, file_mapper, invertedIndexOptimized):
     start_time = time.time()
     # Use top5Websites to score and rank the websites
     top_websites = top5Websites(stemmed_words, inverted_index, file_mapper, invertedIndexOptimized)
-    search_time = (time.time() - start_time) * 1000
+    search_time = (time.time() - start_time) * 10
     print(f"This search took {search_time:.2f} ms")
 
     if not top_websites:
@@ -291,7 +293,7 @@ def top5Websites(stemmed, invertedIndex, file_mapper, optimizedIndex):
 
     for token in stemmed:
         token_docs = invertedIndex.get_documents(token)
-        print(f"Token: {token}, Documents: {token_docs}")
+        #print(f"Token: {token}, Documents: {token_docs}")
         for doc_id, freq, wordScore in token_docs:
             file_path = file_mapper.getFileById(doc_id - 1)
             websiteNames.add(file_path)

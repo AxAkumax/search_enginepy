@@ -1,3 +1,8 @@
+html, body {
+    height: 100%;
+    overflow: auto; /* Prevent the entire page from scrolling */
+}
+
 #form {
     max-width: 65vh;
     margin: auto;
@@ -51,6 +56,11 @@ h1{
     text-align: center;
     color: #924bc9;
     font-size: 10vh;
+}
+
+#result{
+    max-width: 70vh;
+    margin-bottom: 2vh;
 }
 
 footer {
