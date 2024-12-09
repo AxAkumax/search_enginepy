@@ -137,12 +137,12 @@ def setup_shelve_dir(shelve_dir):
 def main():
     # This path will change based on who it is. In your own local you have to change this
 
-    main_path = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy1"
-    document_folder = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy1/developer"
-    invertedIndexLocation = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy1/ii"
-    invertedIndexOptimized = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy1/optimized"
-    invertedIndexCombined= "C:/Users/Mai Luong/Documents/GitHub/search_enginepy1/combined"
-    shelveDirectory = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy1/shelve"
+    main_path = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy/search_enginepy"
+    document_folder = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy/search_enginepy/ANALYST"
+    invertedIndexLocation = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy/search_enginepy/ii"
+    invertedIndexOptimized = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy/search_enginepy/optimized"
+    invertedIndexCombined= "C:/Users/Mai Luong/Documents/GitHub/search_enginepy/search_enginepy/combined"
+    shelveDirectory = "C:/Users/Mai Luong/Documents/GitHub/search_enginepy/search_enginepy/shelve"
     setup_shelve_dir(invertedIndexLocation)
 
     # go recursively and get all the files in the subdirectory
@@ -157,10 +157,11 @@ def main():
     if (not isBuilt(invertedIndexLocation)):
         print('inverted index is not built, building it right now')
         inverted_index = run(inverted_index, file_mapper, document_paths, invertedIndexLocation)
-        #add renewed optimized index with tf-df sorted list of doc-id
-        calculate_and_save_tf_idf()
         inverted_index.flush_all_buffers()
         inverted_index.optimizeIndex()
+    else:
+        #add renewed optimized index with tf-df sorted list of doc-id
+        calculate_and_save_tf_idf()
     
     try:
         file_mapper.load_file_mapper("file_mapper.pkl")
@@ -169,10 +170,10 @@ def main():
         print("file_mapper.pkl not found, starting with an empty file mapper.")
 
     parse_shelve_files(invertedIndexLocation,main_path+"/output/")
-    return inverted_index, invertedIndexOptimized, file_mapper
+    return inverted_index, file_mapper, invertedIndexOptimized
 
 # use to search index through cmd for debugging
-def cmd_search(inverted_index, invertedIndexOptimized, file_mapper):
+def cmd_search(inverted_index, file_mapper, invertedIndexOptimized):
     while True:
         user_input = input("Enter your inputs (Q to quit): ")
 
@@ -180,19 +181,14 @@ def cmd_search(inverted_index, invertedIndexOptimized, file_mapper):
             # Stem the user's input
             stemmed_words = [stemmer.stem(word) for word in user_input.split()]
             print(stemmed_words)
-
-            start_time = time.time()
-
-            # Use the query function to get compatible websites
-            compatible_websites = query(stemmed_words, inverted_index)
-
-            if not compatible_websites:
-                print("No results found!!!")
+            
+            if not stemmed_words:
+                print("No valid search terms provided!")
                 continue
 
+            start_time = time.time()
             # Use top5Websites to score and rank the websites
-            top_results = top5Websites(compatible_websites, invertedIndexOptimized, file_mapper)
-
+            top_results = top5Websites(stemmed_words, inverted_index, file_mapper, invertedIndexOptimized)
             search_time = (time.time() - start_time) * 1000
             print(f"This search took {search_time:.2f} ms")
 
@@ -204,11 +200,11 @@ def cmd_search(inverted_index, invertedIndexOptimized, file_mapper):
             print(f"Top 5 search results for '{user_input}':")
             printed_results = 0  # Track the number of valid results printed
 
-            for rank, (website_path, score) in enumerate(top_results, start=1):
+            for rank, (website_path, score_tuple) in enumerate(top_results, start=1):
                 if printed_results >= 5:
                     break
+                score = score_tuple[1]
                 
-                # Extract the URL from the JSON file associated with the website
                 try:
                     with open(website_path, 'r', encoding='utf-8') as json_file:
                         json_data = json.load(json_file)
@@ -221,36 +217,37 @@ def cmd_search(inverted_index, invertedIndexOptimized, file_mapper):
                             
                             # Check for duplicate and invalid URLs
                             if not re.search(r'\.\w+$', normalized_url) and normalized_url not in visited_urls:
-                                print(f"{printed_results + 1}. {normalized_url} (Score: {score:.2f})")
+                                print(f"{printed_results + 1}. {normalized_url} (Query Intersection: {score:.2f})")
                                 visited_urls.add(normalized_url)
                                 printed_results += 1 
                             else:
-                                #print("invalid link")
                                 continue 
                         else:
-                            #print("invalid JSON link")
                             continue 
                 except (FileNotFoundError, json.JSONDecodeError) as e:
                     print(f"Error reading JSON file {website_path}: {e}")
-                    print(f"{printed_results + 1}. {website_path} (Score: {score:.2f})")
+                    print(f"{printed_results + 1}. {website_path} (Query Intersection: {score:.2f})")
                     printed_results += 1 
 
         else:
             print("Exiting search...")
             break
 
-def web_search(user_input, inverted_index, invertedIndexOptimized, file_mapper):
+def web_search(user_input, inverted_index, file_mapper, invertedIndexOptimized):
     # Preprocess user input into stemmed words
     stemmed_words = [stemmer.stem(word) for word in user_input.split()]
 
-    # Retrieve compatible documents using the `query` function
-    compatible_docs = query(stemmed_words, inverted_index)
-
-    if not compatible_docs:
-        return []  # Return empty list if no compatible documents found
+    if not stemmed_words:
+        print("No valid search terms provided!")
     
-    # Get the top 5 websites based on the `top5Websites` function
-    top_websites = top5Websites(compatible_docs, invertedIndexOptimized, file_mapper)
+    start_time = time.time()
+    # Use top5Websites to score and rank the websites
+    top_websites = top5Websites(stemmed_words, inverted_index, file_mapper, invertedIndexOptimized)
+    search_time = (time.time() - start_time) * 1000
+    print(f"This search took {search_time:.2f} ms")
+
+    if not top_websites:
+        print("No results found after ranking!!!")
     
     search_results = []
     visited_urls = set()
@@ -285,74 +282,65 @@ def web_search(user_input, inverted_index, invertedIndexOptimized, file_mapper):
             # If the URL is missing or there's an error, still append the website path and score
             search_results.append((website, score))
 
-    return search_results
+    return search_results, search_time
 
-def top5Websites( websites, optimizedIndex, file_mapper):
-    documentWordScores = defaultdict(float)
+def top5Websites(stemmed, invertedIndex, file_mapper, optimizedIndex):
+    documentWordScores = defaultdict(list)  # Use list to store tuples
     websiteNames = set()
     websiteData = {}
-    for website in websites:
-        # print(f"Website Data: {website}, Type: {type(website)}")
-        if len(website) == 3:
-            id, freq, wordScore = website
-            file_path = file_mapper.getFileById(id - 1)
-            websiteNames.add(file_path)
-            websiteData[file_path] = (wordScore, id, freq)
-            # print(f"ID: {id} and file: {file_mapper.getFileById(id - 1)}")
 
+    for token in stemmed:
+        token_docs = invertedIndex.get_documents(token)
+        print(f"Token: {token}, Documents: {token_docs}")
+        for doc_id, freq, wordScore in token_docs:
+            file_path = file_mapper.getFileById(doc_id - 1)
+            websiteNames.add(file_path)
+            if file_path not in websiteData:
+                websiteData[file_path] = []
+            # Append frequency and token as a tuple to websiteData
+            websiteData[file_path].append((freq, token))
+
+    # Get all pickle files from the optimizedIndex directory
     files = [f for f in os.listdir(optimizedIndex) if f.endswith(".pkl")]
 
     for fileName in files:
         shelve_path = os.path.join(optimizedIndex, fileName)
+
+        if not os.path.exists(shelve_path):
+            print(f"Pickle file {shelve_path} does not exist.")
+            continue
+
         try:
             with open(shelve_path, "rb") as f:
                 data = pickle.load(f)
 
                 for website in websiteNames:
-                    # print(f"Website Data: {website}, Type: {type(website)}")
                     if website not in websiteData:
                         print(f"Website {website} not found in websiteData!")
                         continue
 
-                    wordScore, website_id, freq = websiteData[website]
-                    # Combine the calculated score with the wordScore and freq
-                    # Here we're looking at freq score to calculate relevance
-                    documentWordScores[website] += freq
+                    # Combine scores for each token related to the website
+                    for freq, token in websiteData[website]:
+                        documentWordScores[website].append((freq, token))
 
         except Exception as e:
             print(f"Error opening pickle file {shelve_path}: {e}")
 
-    # Kth largest, O(N * log(5)) instead of sorting.
-    top5_docs = heapq.nlargest(10, documentWordScores.items(), key=lambda x: x[1])
+    # Aggregate scores and sort by relevance
+    aggregated_scores = {
+        website: (sum(freq for freq, _ in scores), len(set(token for _, token in scores)))
+        for website, scores in documentWordScores.items()
+    }
+
+    # Get top 5 websites based on aggregated scores
+    top5_docs = heapq.nlargest(10, aggregated_scores.items(), key=lambda x: x[1])
     top5_websites = [tuple([website, score]) for website, score in top5_docs]
 
     return top5_websites
 
-def query(stemmed, invertedIndex):
-    # Check if there are tokens to process
-    if not stemmed:
-        return []
-
-    first_token = stemmed[0]
-    documents = invertedIndex.get_documents(first_token)
-    #print(first_token, documents)
-    documents_set = set(doc[0] for doc in documents if isinstance(doc, tuple))
-    if not documents_set:
-        return []
-
-    for token in stemmed[1:]:
-        token_docs = invertedIndex.get_documents(token)
-        #print(token, token_docs)
-        token_docs_set = set(doc[0] for doc in token_docs if isinstance(doc, tuple))
-        documents_set &= token_docs_set
-        if not documents_set:
-            return []
-
-    return documents
-
 if __name__ == "__main__":
     # Run the setup and indexing process
-    inverted_index, invertedIndexOptimized, file_mapper = main()
+    inverted_index, file_mapper, invertedIndexOptimized = main()
     
     # Start the search functionality
-    cmd_search(inverted_index, invertedIndexOptimized, file_mapper)
+    cmd_search(inverted_index, file_mapper, invertedIndexOptimized)

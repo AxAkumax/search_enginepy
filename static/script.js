@@ -34,8 +34,14 @@ document.getElementById('searchForm').addEventListener('submit', function(event)
 
         const resultElement = document.getElementById('result');
         if (data.results && data.results.length > 0) {
-            // Display each result URL on a new line
-            resultElement.innerHTML = data.results.map(item => `<p><a href="${item[0]}" target="_blank">${item[0]}</a> - Score: ${item[1]}</p>`).join('');
+            // Display the query response time
+            const responseTimeElement = `<p>Query Response Time: ${data.responseTime} ms</p>`;
+            // Display each result URL and the last value of the tuple (the second element of the nested tuple) as the score
+            resultElement.innerHTML = responseTimeElement + data.results.map(item => {
+                // Access the last value of the nested tuple (item[1][1])
+                const lastValue = item[1][1];
+                return `<p><a href="${item[0]}" target="_blank">${item[0]}</a> </br> Query Intersection: ${lastValue}</p>`;
+            }).join('');
         } else {
             resultElement.innerHTML = '<p>No results found.</p>';
         }

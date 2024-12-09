@@ -29,13 +29,15 @@ def search():
         app.logger.info(f"Received query: {query}")
 
         # Perform the search operation using the query
-        results = web_search(query, inverted_index, shelveDirectory, file_mapper)
+        results, qtime = web_search(query, inverted_index, shelveDirectory, file_mapper)
 
-        if results is not None:
+        if results and qtime is not None:
             # Log the results for debugging
             app.logger.info(f"Query Results: {results}")
+            app.logger.info(f"Query Time: {qtime}")
+            rounded_qtime = round(qtime, 2)
             # Return the results as a JSON response
-            return jsonify({'results': results}), 200
+            return jsonify({'results': results, 'responseTime': rounded_qtime}), 200
         else:
             # Return an appropriate message if no results are found
             return jsonify({'message': 'No results found'}), 404
