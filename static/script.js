@@ -2,13 +2,18 @@ document.getElementById('searchForm').addEventListener('submit', function(event)
     event.preventDefault(); // Prevent the form from submitting normally
 
     const query = document.getElementById('searchInput').value.trim(); // Get search input value and remove extra spaces
-
+    const resultElement = document.getElementById('result');
+    
     if (!query) {
         console.error('Search query is empty!');
+        resultElement.innerHTML = '';
         return;
     }
 
     console.log('Search query:', query);
+
+    resultElement.innerHTML = '<p>Finding results...</p>'; // Show the loading message
+
 
     fetch('/search', {
         method: 'POST',
