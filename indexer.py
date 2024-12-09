@@ -191,7 +191,7 @@ def cmd_search(inverted_index, file_mapper, invertedIndexOptimized):
             start_time = time.time()
             # Use top5Websites to score and rank the websites
             top_results = top5Websites(stemmed_words, inverted_index, file_mapper, invertedIndexOptimized)
-            search_time = (time.time() - start_time) * 10
+            search_time = (time.time() - start_time) * 100
             print(f"This search took {search_time:.2f} ms")
 
             if not top_results:
@@ -245,7 +245,7 @@ def web_search(user_input, inverted_index, file_mapper, invertedIndexOptimized):
     start_time = time.time()
     # Use top5Websites to score and rank the websites
     top_websites = top5Websites(stemmed_words, inverted_index, file_mapper, invertedIndexOptimized)
-    search_time = (time.time() - start_time) * 10
+    search_time = (time.time() - start_time) * 100
     print(f"This search took {search_time:.2f} ms")
 
     if not top_websites:
