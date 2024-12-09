@@ -30,28 +30,29 @@ Here are queries we used to test our search engine:
 
 10 Queries that performed Well:
 
-1. 
-2. 
-3. 
-4. 
-5. 
-6. 
-7. 
-8. 
-9. 
-10. 
+1. master of informatics
+2. professor
+3. how to build a search engine
+4. ics irvine lab work while attending full time
+5. category identify swam in the lake at \~
+6. anazji daf 83 2 j aaa >></.,\ 43
+7. hello irvine
+8. hello and a i stop more swin swimmer path direct
+9. 123 jump for the sky 08 now< . 
+10. can will went for ^ * i. o. l+
 
 10 Queries that performed poorly:
 
-1. 
-2. 
-3. 
-4. 
-5. 
-6. 
-7. 
-8. 
-9. 
-10. 
+1. a b 0 1 3 4 6
+2. 0 1 2 3 4 5 6 7 8 9 
+3. Ö#  @ hello university of irvine 9 3 5 7 3
+4. university of 1 2 3 1 califronia irvine
+5. irvine professor 1 66 923 48 3
+6. 9 8 7 6 5 432 1 1
+7. search 1 874 find 0 3 92
+8. hello and a i stop more swin swimmer path direct 9 3 1 4 76 4
+9. 1 12 23 34 45 56 7
+10. can will went for ^ * i. o. l+ 12 4 3 8 
 
-Issues:
+Issues: Inputs with primarily numbers performed poorly compared to inputs with just words.
+We would want to improve the way we built the inverted index such as using a positional index.
